@@ -79,14 +79,28 @@ python3 setup_bt.py          # garantir discoverable (1x)
 python3 spp_server.py        # iniciar servidor
 ```
 
-### 2. S23 — App + Termux
+### 2. Build do APK
+
+**Opção A — No Manjaro (T470):**
+```bash
+cd bt-spp-bridge/app
+bash build.sh                # gera build/bt-spp-bridge.apk (20 KB)
+# Transfere pro S23:
+scp -P 2222 build/bt-spp-bridge.apk u0_a471@10.0.0.35:~/storage/downloads/
+```
+
+**Opção B — No Termux (S23):**
+```bash
+cd ~/projetos/bt-spp-bridge/app
+bash build.sh                # build 100% nativo no Termux
+```
+
+**Setup Manjaro (já feito):** JDK 21 Temurin (`~/jdk21/`), Android SDK (`~/android-sdk/`), build-tools 30.0.3, platforms 33+36.
+
+### 3. S23 — App + Termux
 
 ```bash
-# No Termux: build e instala o APK
-cd ~/projetos/bt-spp-bridge/app
-bash build.sh                # gera bt-spp-bridge.apk
 # Instalar pelo gerenciador de arquivos
-
 # Abrir BT SPP Bridge → escanear → tocar no t470
 # No Termux:
 nc localhost 8090            # bridge ativa!
@@ -204,10 +218,45 @@ Todo o projeto foi implementado por **agentes pi** trabalhando em paralelo:
 | Atributo | Valor |
 |----------|-------|
 | Package | `com.termux.bridge` |
-| Tamanho | ~17 KB |
+| Tamanho | ~20 KB |
 | minSdkVersion | 26 (Android 8+) |
 | targetSdkVersion | 33 |
 | Permissões | Bluetooth×4, Location×2, Internet, Foreground×2, Notifications |
+| Assinatura | v2 + v3 (debug keystore) |
+| Build host | Manjaro Linux (JDK 21 + Android SDK) |
+
+---
+
+## 🧭 Para o Próximo Agente
+
+### Estado atual
+- ✅ Comunicação bidirecional SPP funcionando (testado)
+- ✅ APK buildando no Manjaro (`bt-spp-bridge/app/build.sh`)
+- ✅ Código revisado (práticas, simplificação, segurança → `review/`)
+- ✅ Repositório git no GitHub: [`dduartee/spp-bt-spp-bridge`](https://github.com/dduartee/spp-bt-spp-bridge)
+
+### Dependências instaladas no T470
+| Recurso | Path |
+|---------|------|
+| JDK 21 (Temurin) | `~/jdk21/` |
+| Android SDK | `~/android-sdk/` (platform-33, platform-36, build-tools 30.0.3, platform-tools) |
+| Python 3.14 | sistema (Manjaro) |
+| BlueZ 5.86 | sistema |
+
+### Pontos de entrada
+| Comando | Função |
+|---------|--------|
+| `python3 spp_server.py` | Servidor SPP (SDP + socket) |
+| `python3 spp_server.py --no-sdp` | Servidor SPP (raw socket apenas) |
+| `S23_MAC=XX:XX:XX:XX:XX:XX python3 spp_client.py` | Modo reverso (T470→S23) |
+| `python3 setup_bt.py` | Configurar adapter Bluetooth (1x) |
+| `bash bt-spp-bridge/app/build.sh` | Build do APK |
+
+### Pendências (opcionais)
+- [ ] `RequireAuthentication: False` —安全意识 (ver `review/security.md`)
+- [ ] Validar input no bridge (limite de tamanho, rate limit)
+- [ ] Hardcoded MAC `F4:96:34:60:D6:3B` → env var
+- [ ] Implementar `RequireAuthentication: True` (exige pareamento)
 
 ---
 
