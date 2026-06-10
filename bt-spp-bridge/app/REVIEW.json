@@ -1,0 +1,134 @@
+{
+  "project": "bt-spp-bridge",
+  "goal": "Build Android APK on Termux (ARM64) that bridges Bluetooth SPP to TCP localhost",
+  "status": "build_successful_install_failed",
+  "timestamp": "2026-06-10",
+  "environment": {
+    "device": "Samsung Galaxy S23",
+    "arch": "aarch64",
+    "android_sdk": 36,
+    "java": "openjdk-21 (21.0.11)",
+    "aapt_version": "v1 (from aapt 13.0.0.6)",
+    "dx_version": "1.16-7",
+    "d8_version": "33.0.1-1 (BUGGED on Termux)",
+    "apksigner_version": "33.0.1-1"
+  },
+  "errors_and_fixes": [
+    {
+      "id": 1,
+      "step": "compile_resources",
+      "tool": "aapt2",
+      "error": "attribute android:name not found",
+      "cause": "aapt2 v13 uses API incompatible with platform-36 android.jar",
+      "fix": "Use aapt v1 instead",
+      "fixed": true,
+      "command": "aapt package -f -M AndroidManifest.xml -I android.jar -S res -J R -F base.apk"
+    },
+    {
+      "id": 2,
+      "step": "compile_resources",
+      "tool": "aapt v1 + framework.jar",
+      "error": "No resource identifier found for attribute 'maxSdkVersion', 'allowBackup', 'exported'",
+      "cause": "/system/framework/framework.jar is DEX runtime, lacks attrs.xml binary definitions",
+      "fix": "Download full SDK platform (platform-36_r01.zip, ~200MB)",
+      "fixed": true,
+      "note": "Platform extracted to android-36/ subdirectory, created symlink android.jar -> android-36/android.jar"
+    },
+    {
+      "id": 3,
+      "step": "compile_java",
+      "tool": "javac (openjdk-17)",
+      "error": "Source option 7 is no longer supported",
+      "cause": "Java 17+ dropped -source 1.7 support",
+      "fix": "Use -source 1.8 minimum",
+      "fixed": true
+    },
+    {
+      "id": 4,
+      "step": "compile_java",
+      "tool": "javac (openjdk-21)",
+      "error": "cannot find symbol: method metafactory(Lookup,String,MethodType,...)",
+      "cause": "Lambda expressions require LambdaMetafactory not available when compiling against Android SDK",
+      "fix": "Replace ALL lambdas (->) with anonymous classes or named inner classes",
+      "fixed": true,
+      "rule": "NEVER use lambdas when javac target is Android SDK"
+    },
+    {
+      "id": 5,
+      "step": "convert_dex",
+      "tool": "d8 (33.0.1-1)",
+      "error": "NullPointerException: Cannot invoke 'String.length()' because '<parameter1>' is null",
+      "cause": "BUG in D8/R8 3.3.20-dev on Termux/ARM64. Crashes on ALL inner classes (anonymous OR named)",
+      "fix": "Use dx instead of d8",
+      "fixed": true,
+      "rule": "NEVER use d8 on Termux. Use dx --dex --output=classes.dex <dir>"
+    },
+    {
+      "id": 6,
+      "step": "convert_dex",
+      "tool": "dx",
+      "error": "class name does not match path",
+      "cause": "dx needs directory root, not individual .class files",
+      "fix": "Pass class directory as argument: dx --dex --output=classes.dex build/classes",
+      "fixed": true
+    },
+    {
+      "id": 7,
+      "step": "package_apk",
+      "tool": "aapt add",
+      "error": "FileNotFoundException: build/apk/base.apk (apksigner)",
+      "cause": "aapt add runs in APK_DIR but classes.dex is in BUILD_DIR",
+      "fix": "cp classes.dex to APK_DIR before aapt add",
+      "fixed": true
+    },
+    {
+      "id": 8,
+      "step": "package_apk",
+      "tool": "aapt v1",
+      "error": "No resource identifier found for attribute 'versionCode' in package 'android'",
+      "cause": "aapt v1 doesn't support --version-code and --version-name flags with SDK 36 android.jar OR flags conflict",
+      "fix": "Remove --version-code and --version-name flags. Let it default.",
+      "fixed": true
+    },
+    {
+      "id": 9,
+      "step": "install_apk",
+      "tool": "Android PackageInstaller",
+      "error": "There was a problem parsing the package",
+      "cause": "UNKNOWN - APK seems valid but Android rejects. Possible: missing versionCode, AndroidManifest issues, or aapt v1 producing incompatible APK",
+      "fix": "INVESTIGATING. Need to check: 1) versionCode not in APK, 2) manifest attribute compatibility, 3) aapt v1 vs platform-36 version mismatch",
+      "fixed": false,
+      "hypothesis": "aapt v1 from SDK 13 may produce APKs incompatible with Android 14+ (SDK 36). Need aapt v1 from newer SDK, OR use aapt2 with compatible platform, OR build on PC."
+    }
+  ],
+  "critical_rules": [
+    "DO NOT use aapt2 on Termux",
+    "DO NOT use d8 on Termux",
+    "DO NOT use lambdas in Java code targeting Android",
+    "DO NOT use system framework.jar for aapt compilation",
+    "ALWAYS use dx for DEX conversion",
+    "ALWAYS download full SDK platform (not framework.jar)",
+    "ALWAYS use 'dx --dex --output=classes.dex <dir>' format"
+  ],
+  "remaining_issue": {
+    "error": "Package parsing failed on install",
+    "possible_causes": [
+      "aapt v1 (SDK 13) incompatible with Android 14+ (SDK 36)",
+      "Missing required manifest attributes (versionCode/versionName)",
+      "aapt v1 producing malformed binary XML",
+      "classes.dex format from dx incompatible with modern ART"
+    ],
+    "next_steps": [
+      "Try aapt2 with platform-33 (matching tool version)",
+      "Or accept defeat: build on PC with Android Studio",
+      "Or use aapt2 --min-sdk 21 flag with platform-33"
+    ]
+  },
+  "build_command_working": "cd ~/bt_bridge_app && rm -rf build && bash build.sh",
+  "apk_location": "/storage/emulated/0/bt-spp-bridge.apk",
+  "_crossrefs": [
+    "PLANO.md",
+    "SUCESSO.md",
+    "README.md"
+  ]
+}
